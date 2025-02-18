@@ -8,7 +8,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 def process_txt_file(file):
-    lines = file.readlines()
+    lines = file.read().decode('utf-8').splitlines()
     data = [line.strip().split()[:24] for line in lines if line.strip() and not line.startswith('#')]
     columns = [
         "Routine Code", "Timestamp", "Routine Count", "Repetition Count", "Duration", "Integration Time [ms]",
@@ -21,6 +21,7 @@ def process_txt_file(file):
     df['Timestamp'] = pd.to_datetime(df['Timestamp'].str.replace("T", " ").str.replace("Z", ""), errors='coerce')
     df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore').apply(pd.to_numeric, errors='coerce')
     return df, df_numeric
+
 
 def load_and_preprocess_data(file):
     df, df_n = process_txt_file(file)
