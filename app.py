@@ -47,27 +47,32 @@ def process_txt_file(file):
 
 def load_and_preprocess_data(file):
     df, df_n = process_txt_file(file)
-    
+
     # Convert Timestamp column to datetime and sort
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors='coerce')
     df = df.sort_values(by="Timestamp").reset_index(drop=True)
 
-    # Select only numeric columns and remove any remaining non-numeric columns
+    # Select only numeric columns and remove any non-numeric columns
     df_numeric = df.select_dtypes(include=[np.number])
 
-    # Remove columns that have all NaN values
+    # Drop columns that have all NaN values
     df_numeric = df_numeric.dropna(axis=1, how='all')
 
     # Handle missing values by filling them with the median
-    df_numeric = df_numeric.fillna(df_numeric.median(numeric_only=True))
+    if not df_numeric.empty:
+        df_numeric = df_numeric.fillna(df_numeric.median(numeric_only=True))
 
     # Drop columns with only one unique value (no variance)
     df_numeric = df_numeric.loc[:, df_numeric.nunique() > 1]
 
-    # Ensure no invalid values remain
+    # Ensure all columns are numeric
     df_numeric = df_numeric.apply(pd.to_numeric, errors='coerce')
 
-    # Fit and transform with MinMaxScaler
+    # If numeric dataframe is empty after cleaning, raise an error
+    if df_numeric.empty:
+        raise ValueError("No valid numeric columns found in the uploaded file.")
+
+    # Apply MinMaxScaler only if df_numeric is not empty
     scaler = MinMaxScaler()
     df_scaled = pd.DataFrame(
         scaler.fit_transform(df_numeric),
@@ -79,6 +84,7 @@ def load_and_preprocess_data(file):
     df_scaled["Timestamp"] = df["Timestamp"]
 
     return df, df_scaled
+
 
 
 
