@@ -8,8 +8,14 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 def process_txt_file(file):
-    lines = file.read().decode('utf-8').splitlines()
+    if hasattr(file, 'getvalue'):  # Handle Streamlit UploadedFile object
+        content = file.getvalue().decode('utf-8')
+    else:
+        content = file.read().decode('utf-8')
+    
+    lines = content.splitlines()
     data = [line.strip().split()[:24] for line in lines if line.strip() and not line.startswith('#')]
+    
     columns = [
         "Routine Code", "Timestamp", "Routine Count", "Repetition Count", "Duration", "Integration Time [ms]",
         "Number of Cycles", "Saturation Index", "Filterwheel 1", "Filterwheel 2", "Zenith Angle [deg]", "Zenith Mode",
@@ -17,14 +23,19 @@ def process_txt_file(file):
         "Electronics Temp [°C]", "Control Temp [°C]", "Aux Temp [°C]", "Head Sensor Temp [°C]",
         "Head Sensor Humidity [%]", "Head Sensor Pressure [hPa]", "Scale Factor", "Uncertainty Indicator"
     ]
+    
     df = pd.DataFrame(data, columns=columns)
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'].str.replace("T", " ").str.replace("Z", ""), errors='coerce')
+    df['Timestamp'] = pd.to_datetime(
+        df['Timestamp'].str.replace("T", " ").str.replace("Z", ""), 
+        errors='coerce'
+    )
     df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore').apply(pd.to_numeric, errors='coerce')
+    
     return df, df_numeric
 
 
 def load_and_preprocess_data(file):
-    df, df_n = process_txt_file(file)
+    df_nn, df = process_txt_file(file)
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors='coerce')
     df = df.sort_values(by="Timestamp").reset_index(drop=True)
 
