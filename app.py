@@ -1,16 +1,28 @@
+# Streamlit Anomaly Detection App with Dependency Fixes
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 from tensorflow.keras import models
-import io
-import base64
+import subprocess
+import sys
+
+# Ensure pip and packages are up-to-date
+try:
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'], check=True)
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'pygments', 'markdown-it-py', 'rich'], check=True)
+except Exception as e:
+    st.error(f"Dependency installation error: {e}")
 
 # Load trained model and scaler
-loaded_autoencoder = models.load_model('autoencoder_model.h5', 
-                                       custom_objects={'mse': tf.keras.losses.MeanSquaredError()})
-scaler = joblib.load('scaler.pkl')
+try:
+    loaded_autoencoder = models.load_model('autoencoder_model.h5', 
+                                           custom_objects={'mse': tf.keras.losses.MeanSquaredError()})
+    scaler = joblib.load('scaler.pkl')
+except Exception as e:
+    st.error(f"Error loading model or scaler: {e}")
 
 def process_txt_file(file):
     lines = file.readlines()
@@ -37,7 +49,7 @@ def detect_anomalies(df_numeric):
 def plot_results(df, anomalies):
     normal_data, anomalous_data = df[~anomalies], df[anomalies]
     st.subheader("Anomaly Detection Results")
-    for column in df.columns:
+    for column in df.columns.drop('Timestamp', errors='ignore'):
         plt.figure(figsize=(12, 6))
         plt.plot(normal_data['Timestamp'], normal_data[column], label='Normal', alpha=0.5)
         plt.scatter(anomalous_data['Timestamp'], anomalous_data[column], color='red', label='Anomaly', marker='x')
