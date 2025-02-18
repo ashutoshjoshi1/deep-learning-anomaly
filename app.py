@@ -7,8 +7,23 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
+def process_txt_file(file):
+    lines = file.readlines()
+    data = [line.strip().split()[:24] for line in lines if line.strip() and not line.startswith('#')]
+    columns = [
+        "Routine Code", "Timestamp", "Routine Count", "Repetition Count", "Duration", "Integration Time [ms]",
+        "Number of Cycles", "Saturation Index", "Filterwheel 1", "Filterwheel 2", "Zenith Angle [deg]", "Zenith Mode",
+        "Azimuth Angle [deg]", "Azimuth Mode", "Processing Index", "Target Distance [m]",
+        "Electronics Temp [°C]", "Control Temp [°C]", "Aux Temp [°C]", "Head Sensor Temp [°C]",
+        "Head Sensor Humidity [%]", "Head Sensor Pressure [hPa]", "Scale Factor", "Uncertainty Indicator"
+    ]
+    df = pd.DataFrame(data, columns=columns)
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'].str.replace("T", " ").str.replace("Z", ""), errors='coerce')
+    df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore').apply(pd.to_numeric, errors='coerce')
+    return df, df_numeric
+
 def load_and_preprocess_data(file):
-    df = pd.read_csv(file)
+    df, df_n = process_txt_file(file)
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors='coerce')
     df = df.sort_values(by="Timestamp").reset_index(drop=True)
 
@@ -56,7 +71,7 @@ def plot_data(df, df_scaled):
 
 def main():
     st.title("Deep Learning Anomaly Detection")
-    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+    uploaded_file = st.file_uploader("Upload L0 file", type=["txt"])
     
     if uploaded_file is not None:
         df, df_scaled = load_and_preprocess_data(uploaded_file)
