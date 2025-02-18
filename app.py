@@ -8,11 +8,14 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 def process_txt_file(file):
-    if hasattr(file, 'getvalue'):  # Handle Streamlit UploadedFile object
+    # Handle Streamlit UploadedFile object or regular file object
+    if isinstance(file, bytes):
+        content = file.decode('utf-8')
+    elif hasattr(file, 'getvalue'):  # Streamlit UploadedFile
         content = file.getvalue().decode('utf-8')
     else:
         content = file.read().decode('utf-8')
-    
+
     lines = content.splitlines()
     data = [line.strip().split()[:24] for line in lines if line.strip() and not line.startswith('#')]
     
@@ -34,8 +37,9 @@ def process_txt_file(file):
     return df, df_numeric
 
 
+
 def load_and_preprocess_data(file):
-    df_nn, df = process_txt_file(file)
+    df, df_n = process_txt_file(file)
     df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors='coerce')
     df = df.sort_values(by="Timestamp").reset_index(drop=True)
 
