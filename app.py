@@ -65,11 +65,17 @@ def load_and_preprocess_data(file):
     # Drop columns with only one unique value (no variance)
     df_numeric = df_numeric.loc[:, df_numeric.nunique() > 1]
 
+    # 🟡 Debug: Print column information to Streamlit sidebar
+    st.sidebar.write(f"Column Types Before Scaling:\n{df.dtypes}")
+    st.sidebar.write(f"Numeric Columns Found:\n{df_numeric.columns.tolist()}")
+    st.sidebar.write(f"First Few Rows of Numeric Data:\n{df_numeric.head()}")
+
     # Ensure all columns are numeric
     df_numeric = df_numeric.apply(pd.to_numeric, errors='coerce')
 
     # If numeric dataframe is empty after cleaning, raise an error
     if df_numeric.empty:
+        st.error("No valid numeric columns found. Please check the uploaded file.")
         raise ValueError("No valid numeric columns found in the uploaded file.")
 
     # Apply MinMaxScaler only if df_numeric is not empty
