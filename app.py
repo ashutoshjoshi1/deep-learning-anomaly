@@ -35,14 +35,28 @@ def process_txt_file(file):
         "Head Sensor Humidity [%]", "Head Sensor Pressure [hPa]", "Scale Factor", "Uncertainty Indicator"
     ]
     
+    # Create DataFrame and convert numeric columns immediately
     df = pd.DataFrame(data, columns=columns)
+    
+    # Convert Timestamp column to datetime
     df['Timestamp'] = pd.to_datetime(
         df['Timestamp'].str.replace("T", " ").str.replace("Z", ""), 
         errors='coerce'
     )
-    df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore').apply(pd.to_numeric, errors='coerce')
+
+    # Convert all columns except 'Routine Code' and 'Timestamp' to numeric
+    numeric_columns = [col for col in df.columns if col not in ["Routine Code", "Timestamp"]]
+    df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
+
+    # 🟡 Debug Output
+    st.sidebar.write(f"After Conversion Column Types:\n{df.dtypes}")
+    st.sidebar.write(f"First Few Rows of DataFrame:\n{df.head()}")
+
+    # Return both the full DataFrame and numeric-only DataFrame
+    df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore')
     
     return df, df_numeric
+
 
 
 def load_and_preprocess_data(file):
