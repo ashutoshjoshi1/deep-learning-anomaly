@@ -9,12 +9,20 @@ from tensorflow.keras import layers
 
 def process_txt_file(file):
     # Handle Streamlit UploadedFile object or regular file object
-    if isinstance(file, bytes):
-        content = file.decode('utf-8')
-    elif hasattr(file, 'getvalue'):  # Streamlit UploadedFile
-        content = file.getvalue().decode('utf-8')
+    if hasattr(file, 'getvalue'):  # Streamlit UploadedFile
+        raw_bytes = file.getvalue()
     else:
-        content = file.read().decode('utf-8')
+        raw_bytes = file.read()
+
+    # Try multiple encodings
+    for encoding in ['utf-8', 'ISO-8859-1', 'utf-16', 'windows-1252']:
+        try:
+            content = raw_bytes.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        raise UnicodeDecodeError("Could not decode file using common encodings.")
 
     lines = content.splitlines()
     data = [line.strip().split()[:24] for line in lines if line.strip() and not line.startswith('#')]
@@ -35,6 +43,7 @@ def process_txt_file(file):
     df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore').apply(pd.to_numeric, errors='coerce')
     
     return df, df_numeric
+
 
 
 
