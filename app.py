@@ -49,8 +49,8 @@ def process_txt_file(file):
     df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
 
     # 🟡 Debug Output
-    st.sidebar.write(f"After Conversion Column Types:\n{df.dtypes}")
-    st.sidebar.write(f"First Few Rows of DataFrame:\n{df.head()}")
+    # st.sidebar.write(f"After Conversion Column Types:\n{df.dtypes}")
+    # st.sidebar.write(f"First Few Rows of DataFrame:\n{df.head()}")
 
     # Return both the full DataFrame and numeric-only DataFrame
     df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore')
