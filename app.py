@@ -8,13 +8,12 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 def process_txt_file(file):
-    # Handle Streamlit UploadedFile object or regular file object
     if hasattr(file, 'getvalue'):  # Streamlit UploadedFile
         raw_bytes = file.getvalue()
     else:
         raw_bytes = file.read()
 
-    # Try multiple encodings
+    # Attempt decoding with common encodings
     for encoding in ['utf-8', 'ISO-8859-1', 'utf-16', 'windows-1252']:
         try:
             content = raw_bytes.decode(encoding)
@@ -24,8 +23,30 @@ def process_txt_file(file):
     else:
         raise UnicodeDecodeError("Could not decode file using common encodings.")
 
+    # Split lines and find the start of data
     lines = content.splitlines()
-    data = [line.strip().split()[:24] for line in lines if line.strip() and not line.startswith('#')]
+
+    # Find the index of the second separator line
+    data_start_index = None
+    separator_count = 0
+
+    for i, line in enumerate(lines):
+        if line.startswith('---'):
+            separator_count += 1
+            if separator_count == 2:
+                data_start_index = i + 1
+                break
+
+    if data_start_index is None:
+        st.error("Data section not found in the uploaded file.")
+        return pd.DataFrame(), pd.DataFrame()
+
+    # Extract relevant data lines only
+    data_lines = [
+        line.strip().split()[:24] 
+        for line in lines[data_start_index:] 
+        if line.strip() and not line.startswith('#')
+    ]
     
     columns = [
         "Routine Code", "Timestamp", "Routine Count", "Repetition Count", "Duration", "Integration Time [ms]",
@@ -35,26 +56,27 @@ def process_txt_file(file):
         "Head Sensor Humidity [%]", "Head Sensor Pressure [hPa]", "Scale Factor", "Uncertainty Indicator"
     ]
     
-    # Create DataFrame and convert numeric columns immediately
-    df = pd.DataFrame(data, columns=columns)
+    df = pd.DataFrame(data_lines, columns=columns)
     
-    # Convert Timestamp column to datetime
+    # Parse the Timestamp column safely
     df['Timestamp'] = pd.to_datetime(
         df['Timestamp'].str.replace("T", " ").str.replace("Z", ""), 
         errors='coerce'
     )
-
-    # Convert all columns except 'Routine Code' and 'Timestamp' to numeric
+    
+    # Remove rows with invalid timestamps
+    df = df[df['Timestamp'].notnull()].reset_index(drop=True)
+    
+    # Convert numeric columns properly
     numeric_columns = [col for col in df.columns if col not in ["Routine Code", "Timestamp"]]
     df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
 
-    # 🟡 Debug Output
     # st.sidebar.write(f"After Conversion Column Types:\n{df.dtypes}")
     # st.sidebar.write(f"First Few Rows of DataFrame:\n{df.head()}")
 
-    # Return both the full DataFrame and numeric-only DataFrame
+    # Prepare the numeric DataFrame for scaling and model prediction
     df_numeric = df.drop(columns=["Routine Code", "Timestamp"], errors='ignore')
-    
+
     return df, df_numeric
 
 
@@ -105,9 +127,6 @@ def load_and_preprocess_data(file):
 
     return df, df_scaled
 
-
-
-
 def train_anomaly_model(df_scaled):
     input_dim = df_scaled.shape[1] - 1
     encoding_dim = input_dim // 2
@@ -146,6 +165,15 @@ def main():
         df, df_scaled = load_and_preprocess_data(uploaded_file)
         df_scaled = train_anomaly_model(df_scaled)
         plot_data(df, df_scaled)
+        
+        # Display the anomalies
+        st.subheader("List of Anomalies Detected")
+        anomalies = df[df_scaled["Anomaly"] == 1]
+        if not anomalies.empty:
+            st.dataframe(anomalies)
+        else:
+            st.write("No anomalies detected.")
+
 
 if __name__ == "__main__":
     main()
