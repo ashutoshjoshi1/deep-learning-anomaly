@@ -133,28 +133,33 @@ def train_anomaly_model(df_scaled):
                     df_scaled.drop(columns=["Timestamp"], errors='ignore'),
                     epochs=50, batch_size=64, validation_split=0.1, verbose=1)
 
+    # Generate reconstructions
     reconstructions = autoencoder.predict(df_scaled.drop(columns=["Timestamp"], errors='ignore'))
-    reconstruction_errors_per_column = np.abs(df_scaled.drop(columns=["Timestamp"], errors='ignore') - reconstructions)
 
-    # Compute anomaly scores per row (mean reconstruction error)
-    reconstruction_errors = np.mean(reconstruction_errors_per_column, axis=1)
-    
-    # Set threshold for anomaly detection
+    # Compute per-column reconstruction errors
+    numeric_columns = df_scaled.drop(columns=["Timestamp"], errors='ignore').columns
+    reconstruction_errors_per_column = np.abs(df_scaled[numeric_columns] - reconstructions)
+
+    # Compute total anomaly score per row
+    reconstruction_errors = reconstruction_errors_per_column.mean(axis=1)
+
+    # Define anomaly threshold
     threshold = np.percentile(reconstruction_errors, 99.9)
     df_scaled["Anomaly"] = (reconstruction_errors > threshold).astype(int)
 
-    # Identify the column(s) that caused the anomaly
+    # Identify top anomaly-causing columns
     anomaly_columns = []
-    column_names = df_scaled.drop(columns=["Timestamp", "Anomaly"]).columns  # Exclude Timestamp & Anomaly column
     
     for i in range(len(df_scaled)):
         if df_scaled.loc[i, "Anomaly"] == 1:
-            # Find columns where error is highest
-            max_error_columns = column_names[reconstruction_errors_per_column.iloc[i].nlargest(3).index]  # Top 3 columns
+            # Get column names of the top 3 highest reconstruction errors
+            sorted_errors = reconstruction_errors_per_column.iloc[i].nlargest(3)
+            max_error_columns = sorted_errors.index.tolist()  # Convert to list of column names
             anomaly_columns.append(", ".join(max_error_columns))
         else:
             anomaly_columns.append("")
 
+    # Assign the anomaly-causing columns to the new column
     df_scaled["Anomaly_Column"] = anomaly_columns
 
     return df_scaled
