@@ -180,16 +180,21 @@ def main():
     if uploaded_file is not None:
         df, df_scaled = load_and_preprocess_data(uploaded_file)
         df_scaled = train_anomaly_model(df_scaled)
-        
-        
+
+        # Debugging: Print available columns
+        st.write("Columns in df_scaled:", df_scaled.columns.tolist())
+
         # Display the anomalies
         st.subheader("List of Anomalies Detected")
         anomalies = df[df_scaled["Anomaly"] == 1]
+
         if not anomalies.empty:
             st.dataframe(anomalies)
         else:
             st.write("No anomalies detected.")
+
         plot_data(df, df_scaled)
+
 
 
 if __name__ == "__main__":
