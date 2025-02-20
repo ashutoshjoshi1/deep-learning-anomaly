@@ -127,8 +127,8 @@ def load_and_preprocess_data(file):
 
     return df, df_scaled
 
-def train_anomaly_model(df_scaled, df_numeric):
-    input_dim = df_scaled.shape[1] - 1  # Exclude Timestamp
+def train_anomaly_model(df_scaled):
+    input_dim = df_scaled.shape[1] - 1
     encoding_dim = input_dim // 2
     
     autoencoder = keras.Sequential([
@@ -142,26 +142,12 @@ def train_anomaly_model(df_scaled, df_numeric):
                      df_scaled.drop(columns=["Timestamp"], errors='ignore'),
                      epochs=50, batch_size=64, validation_split=0.1, verbose=1)
     
-    # Predict and calculate reconstruction errors
     reconstructions = autoencoder.predict(df_scaled.drop(columns=["Timestamp"], errors='ignore'))
     reconstruction_errors = np.mean(np.abs(df_scaled.drop(columns=["Timestamp"], errors='ignore') - reconstructions), axis=1)
     
-    # Set anomaly threshold
     threshold = np.percentile(reconstruction_errors, 99.9)
     df_scaled["Anomaly"] = (reconstruction_errors > threshold).astype(int)
-
-    # Compute column-wise reconstruction errors
-    column_reconstruction_errors = np.abs(df_scaled.drop(columns=["Timestamp"], errors='ignore') - reconstructions)
-    
-    # Find the column with the highest error per row
-    max_error_column_indices = np.argmax(column_reconstruction_errors, axis=1)
-    max_error_column_names = [df_numeric.columns[idx] for idx in max_error_column_indices]
-
-    # Assign the highest error column only for anomaly rows
-    df_scaled["Anomaly_Column"] = np.where(df_scaled["Anomaly"] == 1, max_error_column_names, None)
-
     return df_scaled
-
 
 def plot_data(df, df_scaled):
     columns_to_plot = [col for col in df.columns if col not in ["Timestamp", "Processed File"]]
@@ -177,18 +163,17 @@ def main():
     
     if uploaded_file is not None:
         df, df_scaled = load_and_preprocess_data(uploaded_file)
-        df_scaled = train_anomaly_model(df_scaled, df)
+        df_scaled = train_anomaly_model(df_scaled)
         
         
         # Display the anomalies
         st.subheader("List of Anomalies Detected")
-        anomalies = df[df_scaled["Anomaly"] == 1].copy()
-        anomalies["Anomaly_Column"] = df_scaled.loc[df_scaled["Anomaly"] == 1, "Anomaly_Column"].values
-        
+        anomalies = df[df_scaled["Anomaly"] == 1]
         if not anomalies.empty:
             st.dataframe(anomalies)
         else:
             st.write("No anomalies detected.")
+        plot_data(df, df_scaled)
 
 
 if __name__ == "__main__":
