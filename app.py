@@ -43,10 +43,10 @@ def process_txt_file(file):
 
     # Extract relevant data lines only
     data_lines = [
-        line.strip().split()[:24] 
-        for line in lines[data_start_index:] 
-        if line.strip() and not line.startswith('#')
-    ]
+    line.strip().split()[:24] 
+    for line in lines[data_start_index:] 
+    if line.strip() and not line.startswith('#') and "# INFO" not in line
+]
     
     columns = [
         "Routine Code", "Timestamp", "Routine Count", "Repetition Count", "Duration", "Integration Time [ms]",
