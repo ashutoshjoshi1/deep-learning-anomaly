@@ -119,26 +119,46 @@ def load_and_preprocess_data(file):
     return df, df_scaled
 
 def train_anomaly_model(df_scaled):
-    input_dim = df_scaled.shape[1] - 1
+    input_dim = df_scaled.shape[1] - 1  # Exclude "Timestamp"
     encoding_dim = input_dim // 2
-    
+
     autoencoder = keras.Sequential([
         layers.Input(shape=(input_dim,)),
         layers.Dense(encoding_dim, activation="relu"),
         layers.Dense(input_dim, activation="sigmoid")
     ])
-    
+
     autoencoder.compile(optimizer="adam", loss="mse")
     autoencoder.fit(df_scaled.drop(columns=["Timestamp"], errors='ignore'),
-                     df_scaled.drop(columns=["Timestamp"], errors='ignore'),
-                     epochs=50, batch_size=64, validation_split=0.1, verbose=1)
-    
+                    df_scaled.drop(columns=["Timestamp"], errors='ignore'),
+                    epochs=50, batch_size=64, validation_split=0.1, verbose=1)
+
     reconstructions = autoencoder.predict(df_scaled.drop(columns=["Timestamp"], errors='ignore'))
-    reconstruction_errors = np.mean(np.abs(df_scaled.drop(columns=["Timestamp"], errors='ignore') - reconstructions), axis=1)
+    reconstruction_errors_per_column = np.abs(df_scaled.drop(columns=["Timestamp"], errors='ignore') - reconstructions)
+
+    # Compute anomaly scores per row (mean reconstruction error)
+    reconstruction_errors = np.mean(reconstruction_errors_per_column, axis=1)
     
+    # Set threshold for anomaly detection
     threshold = np.percentile(reconstruction_errors, 99.9)
     df_scaled["Anomaly"] = (reconstruction_errors > threshold).astype(int)
+
+    # Identify the column(s) that caused the anomaly
+    anomaly_columns = []
+    column_names = df_scaled.drop(columns=["Timestamp", "Anomaly"]).columns  # Exclude Timestamp & Anomaly column
+    
+    for i in range(len(df_scaled)):
+        if df_scaled.loc[i, "Anomaly"] == 1:
+            # Find columns where error is highest
+            max_error_columns = column_names[reconstruction_errors_per_column.iloc[i].nlargest(3).index]  # Top 3 columns
+            anomaly_columns.append(", ".join(max_error_columns))
+        else:
+            anomaly_columns.append("")
+
+    df_scaled["Anomaly_Column"] = anomaly_columns
+
     return df_scaled
+
 
 def plot_data(df, df_scaled):
     columns_to_plot = [col for col in df.columns if col not in ["Timestamp", "Processed File"]]
