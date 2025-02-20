@@ -177,7 +177,7 @@ def main():
     
     if uploaded_file is not None:
         df, df_scaled = load_and_preprocess_data(uploaded_file)
-        df_scaled = train_anomaly_model(df_scaled)
+        df_scaled = train_anomaly_model(df_scaled, df)
         
         
         # Display the anomalies
